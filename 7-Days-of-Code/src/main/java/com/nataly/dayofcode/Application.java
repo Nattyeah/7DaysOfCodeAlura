@@ -31,7 +31,22 @@ class Application {
     }
 }
 
-class ImdbApiClient {
+interface Content {
+    String title();
+    String url();
+    String imdbRating();
+    String year();
+}
+
+interface JsonParser {
+    List<? extends Content> parse();
+}
+
+interface ApiClient {
+    String getBody();
+}
+
+class ImdbApiClient implements ApiClient {
     private String apiKey;
 
     public ImdbApiClient(String apiKey) {
@@ -55,7 +70,7 @@ class ImdbApiClient {
     }
 }
 
-class ImdbMovieJsonParser {
+class ImdbMovieJsonParser implements JsonParser {
     private String json;
 
     public ImdbMovieJsonParser(String json) {
@@ -116,7 +131,7 @@ class ImdbMovieJsonParser {
     }
 }
 
-record Movie(String title, String url, String imdbRating, String year) {
+record Movie(String title, String url, String imdbRating, String year) implements Content {
 }
 
 class HTMLGenerator {
@@ -127,7 +142,7 @@ class HTMLGenerator {
         this.writer = writer;
     }
 
-    public void generate(List<Movie> movies) {
+    public void generate(List<? extends Content> contentList) {
         writer.println(
                 """
                         <html>
@@ -141,7 +156,7 @@ class HTMLGenerator {
                             <body>
                         """);
 
-        for (Movie movie : movies) {
+        for (Content content : contentList) {
             String div =
                     """
                             <div class=\"card text-white bg-dark mb-3\" style=\"max-width: 18rem;\">
@@ -153,7 +168,7 @@ class HTMLGenerator {
                             </div>
                             """;
 
-            writer.println(String.format(div, movie.title(), movie.url(), movie.title(), movie.imdbRating(), movie.year()));
+            writer.println(String.format(div, content.title(), content.url(), content.title(), content.imdbRating(), content.year()));
         }
 
 
