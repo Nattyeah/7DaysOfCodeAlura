@@ -1,13 +1,4 @@
 # 7 Days Of Code - By Alura
-
-  - [Day 01](https://github.com/angelozero/7-days-of-code/blob/main/01-DAY.md) 
-  - [Day 02](https://github.com/angelozero/7-days-of-code/blob/main/02-DAY.md)
-  - [Day 03](https://github.com/angelozero/7-days-of-code/blob/main/03-DAY.md)
-  - [Day 04](https://github.com/angelozero/7-days-of-code/blob/main/04-DAY.md)
-  - [Day 05](https://github.com/angelozero/7-days-of-code/blob/main/05-DAY.md)
-  - [Day 06](https://github.com/angelozero/7-days-of-code/blob/main/06-DAY.md)
-  - [Day 07](https://github.com/angelozero/7-days-of-code/blob/main/07-DAY.md)
-
 O que significa?
 
 São 7 exercícios práticos, enviados por e-mail, com as seguintes características:
