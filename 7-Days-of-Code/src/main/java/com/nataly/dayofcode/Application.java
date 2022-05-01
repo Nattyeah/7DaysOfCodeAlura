@@ -7,6 +7,8 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -22,19 +24,24 @@ class Application {
         String json = new ImdbApiClient(apiKey).getBody();
 
         System.out.println("Parsing JSON");
-        List<Movie> movies = new ImdbMovieJsonParser(json).parse();
+        JsonParser jsonParser = new ImdbMovieJsonParser(json);
+
+        List<? extends Content> content = jsonParser.parse();
+
+        Collections.sort(content, Collections.reverseOrder());
+//        Collections.sort(content, Comparator.comparing(Content::year));
 
         System.out.println("Gerando HTML");
         PrintWriter writer = new PrintWriter("content.html");
-        new HTMLGenerator(writer).generate(movies);
+        new HTMLGenerator(writer).generate(content);
         writer.close();
     }
 }
 
-interface Content {
+interface Content extends Comparable<Content> {
     String title();
     String url();
-    String imdbRating();
+    String rating();
     String year();
 }
 
@@ -131,7 +138,15 @@ class ImdbMovieJsonParser implements JsonParser {
     }
 }
 
-record Movie(String title, String url, String imdbRating, String year) implements Content {
+record Movie(String title, String url, String rating, String year) implements Content {
+    @Override
+    public int compareTo(Content c) {
+
+        Integer selfYear = Integer.valueOf(this.year);
+        Integer otherYear = Integer.valueOf(c.year());
+
+        return selfYear.compareTo(otherYear);
+    }
 }
 
 class HTMLGenerator {
@@ -168,9 +183,8 @@ class HTMLGenerator {
                             </div>
                             """;
 
-            writer.println(String.format(div, content.title(), content.url(), content.title(), content.imdbRating(), content.year()));
+            writer.println(String.format(div, content.title(), content.url(), content.title(), content.rating(), content.year()));
         }
-
 
         writer.println(
                 """
