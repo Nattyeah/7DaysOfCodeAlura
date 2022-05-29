@@ -1,17 +1,12 @@
 package com.nataly.dayofcode;
 
-import java.io.IOException;
+import com.nataly.dayofcode.client.MarvelApiClient;
+import com.nataly.dayofcode.interfaces.Content;
+import com.nataly.dayofcode.interfaces.JsonParser;
+import com.nataly.dayofcode.parser.MarvelSerieJsonParser;
+
 import java.io.PrintWriter;
-import java.math.BigInteger;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -20,7 +15,7 @@ class Application {
     public static void main(String[] args) throws Exception {
 
 //        System.out.println("Chamando API Imdb");
-//        String apiKey = "apiKey";
+//        String apiKey = "k_6vden298";
 //        String json = new ImdbApiClient(apiKey).getBody();
 
 //        System.out.println("Parsing JSON");
@@ -28,8 +23,8 @@ class Application {
 //        List<? extends Content> contentList = jsonParser.parse();
 
         System.out.println("Chamando API Marvel");
-        String apiKey = "apiKey";
-        String privateKey = "privateKey";
+        String apiKey = "5aa3a9b87bdb1467821a2fdcb729f06b";
+        String privateKey = "eda4b449c63359399125fcdf6ead797f1870dd4e";
         String jsonSeries = new MarvelApiClient(apiKey, privateKey).getBody();
 
         System.out.println("Parsing JSON");
@@ -46,292 +41,6 @@ class Application {
         PrintWriter writer = new PrintWriter("content.html");
         new HTMLGenerator(writer).generate(contentList);
         writer.close();
-    }
-}
-
-// Interfaces
-interface Content extends Comparable<Content> {
-    String title();
-
-    String url();
-
-    String rating();
-
-    String year();
-}
-
-interface JsonParser {
-    List<? extends Content> parse();
-}
-
-interface ApiClient {
-    String getBody();
-}
-
-// Imdb classes
-record Movie(String title, String url, String rating, String year) implements Content {
-    @Override
-    public int compareTo(Content c) {
-        return this.rating().compareTo(c.rating());
-    }
-}
-
-class ImdbApiClient implements ApiClient {
-    private String apiKey;
-
-    public ImdbApiClient(String apiKey) {
-        this.apiKey = apiKey;
-    }
-
-    public String getBody() {
-        try {
-            URI apiIMDB = URI.create("https://imdb-api.com/en/API/Top250TVs/" + this.apiKey);
-
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder().uri(apiIMDB).build();
-
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            return response.body();
-        } catch (IOException e) {
-            throw new IllegalArgumentException(e);
-        } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-}
-
-class ImdbMovieJsonParser implements JsonParser {
-    private String json;
-
-    public ImdbMovieJsonParser(String json) {
-        this.json = json;
-    }
-
-    public List<Movie> parse() {
-        String[] moviesArray = parseJsonMovies(json);
-
-        List<String> titles = parseTitles(moviesArray);
-        List<String> urlImages = parseUrlImages(moviesArray);
-        List<String> ratings = parseRatings(moviesArray);
-        List<String> years = parseYears(moviesArray);
-
-        List<Movie> movies = new ArrayList<>(titles.size());
-
-        for (int i = 0; i < titles.size(); i++) {
-            movies.add(new Movie(titles.get(i), urlImages.get(i), ratings.get(i), years.get(i)));
-        }
-        return movies;
-    }
-
-    private String[] parseJsonMovies(String json) {
-        Matcher matcher = Pattern.compile(".*\\[(.*)\\].*").matcher(json);
-
-        if (!matcher.matches()) {
-            throw new IllegalArgumentException("no match in " + json);
-        }
-
-        String[] moviesArray = matcher.group(1).split("\\},\\{");
-        moviesArray[0] = moviesArray[0].substring(1);
-        int last = moviesArray.length - 1;
-        String lastString = moviesArray[last];
-        moviesArray[last] = lastString.substring(0, lastString.length() - 1);
-        return moviesArray;
-    }
-
-    private List<String> parseTitles(String[] moviesArray) {
-        return parseAttribute(moviesArray, 3);
-    }
-
-    private List<String> parseUrlImages(String[] moviesArray) {
-        return parseAttribute(moviesArray, 5);
-    }
-
-    private List<String> parseRatings(String[] moviesArray) {
-        return parseAttribute(moviesArray, 7);
-    }
-
-    private List<String> parseYears(String[] moviesArray) {
-        return parseAttribute(moviesArray, 4);
-    }
-
-    private List<String> parseAttribute(String[] jsonMovies, int pos) {
-        return Stream.of(jsonMovies)
-                .map(e -> e.split("\",\"")[pos])
-                .map(e -> e.split(":\"")[1])
-                .map(e -> e.replaceAll("\"", ""))
-                .collect(Collectors.toList());
-    }
-}
-
-// Marvel classes
-record Serie(String title, String url, String rating, String year) implements Content {
-    @Override
-    public int compareTo(Content c) {
-        return this.rating().compareTo(c.rating());
-    }
-}
-
-class MarvelApiClient implements ApiClient {
-    private final String endpoint;
-
-    public MarvelApiClient(String apiKey, String privateKey) {
-        String timestamp = String.valueOf(System.currentTimeMillis());
-        String hash = HashUtils.getHashMd5(timestamp + privateKey + apiKey);
-        this.endpoint = String.format("https://gateway.marvel.com:443/v1/public/series?ts=%s&hash=%s&apikey=%s",
-                timestamp, hash, apiKey);
-    }
-
-    @Override
-    public String getBody() {
-        String json = executeRequest();
-        return json;
-    }
-
-    private String executeRequest() {
-        try {
-            URI apiIMDB = URI.create(this.endpoint);
-
-            HttpClient client = HttpClient.newHttpClient();
-            HttpRequest request = HttpRequest.newBuilder().uri(apiIMDB).build();
-            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            return response.body();
-        } catch (IOException e) {
-            throw new IllegalArgumentException(e);
-        } catch (InterruptedException e) {
-            throw new IllegalStateException(e);
-        }
-    }
-}
-
-class HashUtils {
-    public static String getHashMd5(String value) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            BigInteger hash = new BigInteger(1, md.digest(value.getBytes()));
-            return hash.toString(16);
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-}
-
-class MarvelSerieJsonParser implements JsonParser {
-    private String json;
-
-    public MarvelSerieJsonParser(String json) {
-        this.json = json;
-    }
-
-    public List<Serie> parse() {
-        String[] seriesArray = parseJsonSeries(this.json);
-
-        List<Serie> series = new ArrayList<>();
-        for (int i = 0; i < seriesArray.length; i++) {
-            String title = parseAttribute(seriesArray[i], "title");
-            String ratings = parseAttribute(seriesArray[i], "rating");
-            String years = parseAttribute(seriesArray[i], "startYear");
-
-            if (ratings.isEmpty()) {
-                ratings = "Sem";
-            }
-            String thumbnailValue = parseThumbnailAttribute(seriesArray[i]);
-            series.add(new Serie(title, thumbnailValue, ratings, years));
-        }
-        return series;
-    }
-
-    private String parseThumbnailAttribute(String jsonSeries) {
-        Pattern pattern = Pattern.compile("\"thumbnail\":\\{\"path\":\"");
-        Matcher matcher = pattern.matcher(jsonSeries);
-
-        if (!matcher.find()) {
-            throw new IllegalStateException("Thumbnail não encontrado");
-        }
-
-        int posIniAttribute = matcher.end();
-        String thumbnail_ext = jsonSeries.substring(posIniAttribute);
-
-        pattern = Pattern.compile("\",\"extension\":\"");
-        matcher = pattern.matcher(thumbnail_ext);
-
-        if (!matcher.find()) {
-            throw new IllegalStateException("Thumbnail extension não encontrado");
-        }
-
-        posIniAttribute = matcher.start();
-        String thumbnail = thumbnail_ext.substring(0, posIniAttribute);
-
-        String ext = thumbnail_ext.substring(matcher.end(), matcher.end() + 3);
-
-        return cleanUp(thumbnail) + "." + ext;
-    }
-
-    String parseAttribute(String jsonSeries, String attributeName) {
-        int posIniAttribute = findInitialPositionOfAttribute(jsonSeries, attributeName);
-        jsonSeries = jsonSeries.substring(posIniAttribute);
-
-        int posEndAttribute = findFinalPositionOfAttribute(jsonSeries, attributeName);
-        String attributeValue = jsonSeries.substring(0, posEndAttribute);
-
-        String value = cleanUp(attributeValue);
-
-        return value;
-    }
-
-    private int findFinalPositionOfAttribute(String jsonSeries, String attributeName) {
-        Pattern endPattern = Pattern.compile(",");
-        Matcher endMatcher = endPattern.matcher(jsonSeries);
-
-        if (!endMatcher.find()) {
-            throw new IllegalStateException(attributeName + " não encontrado");
-        }
-
-        int posEndAttribute = endMatcher.start();
-        return posEndAttribute;
-    }
-
-    private int findInitialPositionOfAttribute(String jsonSeries, String attributeName) {
-        Pattern beginPattern = Pattern.compile("\"" + attributeName + "\":");
-        Matcher beginMatcher = beginPattern.matcher(jsonSeries);
-
-        if (!beginMatcher.find()) {
-            throw new IllegalStateException(attributeName + " não encontrado");
-        }
-
-        int posIniAttribute = beginMatcher.end();
-        return posIniAttribute;
-    }
-
-    private static String cleanUp(String attributeValue) {
-        if (attributeValue.startsWith("\"")) {
-            attributeValue = attributeValue.substring(1);
-        }
-        if (attributeValue.endsWith(",")) {
-            attributeValue = attributeValue.substring(0, attributeValue.length() - 1);
-        }
-        if (attributeValue.endsWith("\"")) {
-            attributeValue = attributeValue.substring(0, attributeValue.length() - 1);
-        }
-        return attributeValue.trim();
-    }
-
-    static Pattern BEGIN_ARRAY = Pattern.compile(".*\"results\":");
-    static Pattern END_ARRAY = Pattern.compile(".*\\]}}");
-
-    private String[] parseJsonSeries(String body) {
-        Matcher matcher = BEGIN_ARRAY.matcher(body);
-        matcher.find();
-        int begin = matcher.end();
-
-        matcher = END_ARRAY.matcher(body);
-        matcher.find();
-        int end = matcher.end();
-
-        String jsonStringSeries = body.substring(begin, end);
-
-        String[] jsonMovies = jsonStringSeries.split("\\},\\{\"id\"");
-        return jsonMovies;
     }
 }
 
